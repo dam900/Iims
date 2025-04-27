@@ -1,7 +1,7 @@
 import random
 import mesa
 import mesa.datacollection
-from src.agents import HumanAgent, HumanAgentGenerator, SpawnPointGenerator
+from .agents import HumanAgent, HumanAgentGenerator, SpawnPointGenerator
 
 
 class CovidModel(mesa.Model):
@@ -23,6 +23,9 @@ class CovidModel(mesa.Model):
                 "pos": "pos",
             }
         )
+    
+    def __init_buildings(self):
+        pass
 
     def step(self) -> None:
         self.datacollector.collect(self)

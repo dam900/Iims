@@ -1,5 +1,6 @@
 from __future__ import annotations
 import random
+from typing import Optional
 import mesa
 
 from enum import Enum, auto
@@ -64,15 +65,56 @@ class HumanAgent(mesa.Agent):
         self.likelihood_of_infection = 0.0
         self.likelihood_of_recovery = 0.0
         self.likelihood_of_death = 0.0
+        
+        self.move_likelihood_table = HumanAgent.determine_likelihood_of_mooving(active)
+        
+        self.destination: Optional[tuple[int, int]] = None
+        self.is_moving = False
 
     def determine_action(self) -> HumanAgentActions:
         return random.choice(
-            [HumanAgentActions.MOVE for _ in range(1)]
-            + [HumanAgentActions.STAY_IN_PLACE for _ in range(1)]
+            self.move_likelihood_table
         )
+    
+    def _set_destination(self) -> None:
+        pass
+    
+    def step(self, action: HumanAgentActions ) -> None:
+        """Only for testing purposes, what works and what doesn't"""
+        if self.is_moving:
+            #progress to that destination
+            self.model.grid.move_agent(self, (self.pos[0] + random.randint(-5, 5), (self.pos[1] +random.randint(-5, 5))))
+            if self.destination is not None:
+                pass
+            return
+        if action == HumanAgentActions.STAY_IN_PLACE:
+            self.is_moving = False
+            self.destination = None
+            pass
+        elif action == HumanAgentActions.MOVE:
+            # Determine a new destination
+            self._set_destination()
+            self.is_moving = True
+            # new_x = self.pos[0] + random.choice([-1, 0, 1])
+            # new_y = self.pos[1] + random.choice([-1, 0, 1])
+            # self.model.grid.move_agent(self, (new_x, new_y))
+        else:
+            raise ValueError(f"Unknown action: {action}")
 
-    def step(self, action: HumanAgentActions) -> None:
-        print(f"Agent {self.unique_id} is taking action: {action}")
+    @classmethod
+    def determine_likelihood_of_mooving(cls, move_likelihood: ActivityLikelihoods) -> list[HumanAgentActions]:
+        match move_likelihood:
+            case ActivityLikelihoods.LOW:
+                # 80% stay in place, 20% move
+                return [HumanAgentActions.STAY_IN_PLACE for _ in range(8)] + [HumanAgentActions.MOVE for _ in range(2)]
+            case ActivityLikelihoods.MEDIUM:
+                # 50% stay in place, 50% move
+                return [HumanAgentActions.STAY_IN_PLACE for _ in range(5)] + [HumanAgentActions.MOVE for _ in range(5)]
+            case ActivityLikelihoods.HIGH:
+                # 20% stay in place, 80% move
+                return [HumanAgentActions.STAY_IN_PLACE for _ in range(2)] + [HumanAgentActions.MOVE for _ in range(8)]
+            case _:
+                raise ValueError(f"Unknown activity likelihood: {move_likelihood}")            
 
     @classmethod
     def determine_age_group(cls, age: int) -> AgeGroups:

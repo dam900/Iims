@@ -8,6 +8,7 @@ dependencies = [
     "matplotlib>=3.10.1",
     "mesa>=3.1.5",
     "pygame>=2.6.1",
+    "pytmx>=3.32",
 ]
 
 [dependency-groups]
