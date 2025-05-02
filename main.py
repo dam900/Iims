@@ -4,7 +4,7 @@ from sim.src.model import CovidModel
 
 SCREEN_WIDTH = 1440
 SCREEN_HEIGHT = 736
-FPS = 60
+FPS = 2  # 60
 
 # class Agent:
 #     def __init__(self, x, y):
@@ -36,40 +36,57 @@ FPS = 60
 #     def draw(self, surface):
 #         pygame.draw.rect(surface, self.color, self.rect)
 
+
 def main():
-    model = CovidModel(N=10, width=1440 // TILE_SIZE, height=736 // TILE_SIZE)
+    model = CovidModel(N=1, width=1440 // TILE_SIZE, height=736 // TILE_SIZE)
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Simulation of virus spread")
     clock = pygame.time.Clock()
     mapa = Map("maps/walkway_map.tmx")
-    # agent = Agent(0, 0)
 
     running = True
-    i=0
+    i = 0
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            elif (
+                event.type == pygame.KEYDOWN
+                and event.key == pygame.K_c
+                and pygame.key.get_mods() & pygame.KMOD_CTRL
+            ):
+                running = False
+            elif (
+                event.type == pygame.MOUSEBUTTONDOWN and event.button == 1
+            ):  # dev helpers
+                mouse_x, mouse_y = event.pos
+                grid_x = mouse_x // TILE_SIZE
+                grid_y = mouse_y // TILE_SIZE
+                print(f"Clicked tile coordinates: ({grid_x}, {grid_y})")
         model.step()
         screen.fill((0, 0, 0))
         mapa.draw_map()
-        
-        positions = model.datacollector.get_agent_vars_dataframe().xs(i+1, level="Step")
-        
-        # Extract x and y coordinates from positions
-        x = [pos[0] for pos in positions['pos']]
-        y = [pos[1] for pos in positions['pos']]
-        # agent.update(mapa)
-        # agent.draw(screen)
-        
+
+        positions = model.datacollector.get_agent_vars_dataframe().xs(
+            i + 1, level="Step"
+        )
+
+        x = [pos[0] for pos in positions["pos"]]
+        y = [pos[1] for pos in positions["pos"]]
+
         for pos in zip(x, y):
             x, y = pos
-            pygame.draw.rect(screen, (255, 0, 0), (x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE))
+            pygame.draw.rect(
+                screen,
+                (255, 0, 0),
+                (x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE),
+            )
         pygame.display.update()
-        i+=1
+        i += 1
         clock.tick(FPS)
     pygame.quit()
+
 
 if __name__ == "__main__":
     main()

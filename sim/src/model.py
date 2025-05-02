@@ -1,7 +1,17 @@
-import random
+from enum import Enum
 import mesa
 import mesa.datacollection
+
+from maps.map import Map
 from .agents import HumanAgent, HumanAgentGenerator, SpawnPointGenerator
+
+
+class BuldingType(Enum):
+    SHOP = "shop"
+    HOUSE = "house"
+    LIBRARY = "library"
+    FASTFOOD = "fastfood"
+    HOSPITAL = "hospital"
 
 
 class CovidModel(mesa.Model):
@@ -23,9 +33,12 @@ class CovidModel(mesa.Model):
                 "pos": "pos",
             }
         )
-    
-    def __init_buildings(self):
-        pass
+
+    def __init_buildings(self, map: Map):
+        self.buildings: dict[BuldingType, list[tuple]] = {}
+        for building in BuldingType:
+            self.buildings[building] = []
+        self.buildings[BuldingType.HOSPITAL].append((0, 0))
 
     def step(self) -> None:
         self.datacollector.collect(self)
@@ -33,4 +46,3 @@ class CovidModel(mesa.Model):
             if isinstance(agent, HumanAgent):
                 act = agent.determine_action()
                 agent.step(act)
-                # self.grid.move_agent(agent, (agent.pos[0] + random.randint(-self.s, self.s), (agent.pos[1] +random.randint(-self.s, self.s))))
