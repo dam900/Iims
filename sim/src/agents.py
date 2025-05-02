@@ -87,6 +87,7 @@ class HumanAgent(mesa.Agent):
         self.is_moving = False
 
         self.grid: mesa.space.MultiGrid = self.model.grid
+        self.prev_pos: Optional[tuple[int, int]] = self.home
 
     def respawn(self) -> None:
         self.grid.place_agent(self, self.home)
@@ -108,14 +109,18 @@ class HumanAgent(mesa.Agent):
 
     def _get_best_move(self) -> tuple[int, int]:
         pos_moves = self.grid.get_neighborhood(
-            self.pos, moore=True, include_center=True
+            self.pos,
+            moore=False,
+            # include_center=True,
         )
+        pos_moves = list(filter(self.model.map.is_allowed, pos_moves))
+        pos_moves = list(filter(lambda x: x != self.prev_pos, pos_moves))
+
         dists = np.array(
             list(
                 map(self._get_distance_to_destination, pos_moves),
             ),
         )
-
         return pos_moves[np.argmin(dists)]
 
     def step(self, action: HumanAgentActions) -> None:
@@ -130,13 +135,16 @@ class HumanAgent(mesa.Agent):
                     best_pos[1],
                 ),
             )
+            self.prev_pos = self.pos
             if self.pos == self.destination:
                 self.is_moving = False
                 self.destination = None
+                self.prev_pos = None
             return
         if action == HumanAgentActions.STAY_IN_PLACE:
             self.is_moving = False
             self.destination = None
+            self.prev_pos = None
         elif action == HumanAgentActions.MOVE:
             self._set_destination(self.model.destgen.next(self))
             self.is_moving = True
@@ -209,14 +217,14 @@ class HumanAgentGenerator:
 
 
 class SpawnPointGenerator:
-    def __init__(self, width: int, height: int):
-        self.width = width
-        self.height = height
+    def __init__(
+        self,
+        houses=list[tuple[int, int]],
+    ):
+        self.houses = houses
 
     def next(self) -> tuple:
-        x = random.randrange(self.width)
-        y = random.randrange(self.height)
-        return (x, y)
+        return random.choice(self.houses)
 
 
 class DestinationGenerator:

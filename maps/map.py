@@ -42,7 +42,8 @@ class Map:
             for tile in group:
                 self.display_surface.blit(tile.image, tile.rect.topleft)
 
-    def is_allowed(self, x, y):
+    def is_allowed(self, pos):
+        x, y = pos
         walkable_layers = ["road", "fastfood", "shop", "library", "hospital", "houses"]
         px, py = x * TILE_SIZE, y * TILE_SIZE
 

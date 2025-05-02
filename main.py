@@ -1,10 +1,11 @@
+import random
 import pygame
 from maps.map import Map, TILE_SIZE
 from sim.src.model import CovidModel
 
 SCREEN_WIDTH = 1440
 SCREEN_HEIGHT = 736
-FPS = 30  # 60
+FPS = 15  # 60
 
 # class Agent:
 #     def __init__(self, x, y):
@@ -44,7 +45,7 @@ def main():
     clock = pygame.time.Clock()
     mapa = Map("maps/walkway_map.tmx")
     model = CovidModel(
-        N=1,
+        N=10,
         width=1440 // TILE_SIZE,
         height=736 // TILE_SIZE,
         map=mapa,
@@ -82,11 +83,13 @@ def main():
 
         for pos in zip(x, y):
             x, y = pos
-            pygame.draw.rect(
+            pygame.draw.circle(
                 screen,
                 (255, 0, 0),
-                (x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE),
+                (x * TILE_SIZE + TILE_SIZE // 2, y * TILE_SIZE + TILE_SIZE // 2),
+                TILE_SIZE // 2,
             )
+        print(model.agents[0].destination)
         pygame.display.update()
         i += 1
         clock.tick(FPS)

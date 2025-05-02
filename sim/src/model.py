@@ -18,10 +18,13 @@ class CovidModel(mesa.Model):
         self.height = height
         self.num_agents = N
         self.grid = mesa.space.MultiGrid(width, height, True)
-        self.__init_buildings(map)
+        self.map = map
+        self.__init_buildings(self.map)
         self.destgen = DestinationGenerator(self.buildings)
 
-        spawngen = SpawnPointGenerator(self.width, self.height)
+        spawngen = SpawnPointGenerator(
+            houses=self.buildings[BuldingType.HOUSE],
+        )
         agen = HumanAgentGenerator(self, spawngen)
 
         for _ in range(self.num_agents):
