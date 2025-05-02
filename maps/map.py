@@ -4,11 +4,13 @@ from pytmx.util_pygame import load_pygame
 
 TILE_SIZE = 32
 
+
 class Tile(pygame.sprite.Sprite):
     def __init__(self, x, y, image):
         super().__init__()
         self.image = image
         self.rect = pygame.Rect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+
 
 class Map:
     def __init__(self, tmx_file):
@@ -61,4 +63,8 @@ class Map:
 
         return current_layers
 
-
+    def get_layer_positions_normalized(self, layer_name):
+        positions = []
+        for tile in self.tile_layers[layer_name]:
+            positions.append((tile.rect.x // TILE_SIZE, tile.rect.y // TILE_SIZE))
+        return positions

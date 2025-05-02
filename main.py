@@ -4,7 +4,7 @@ from sim.src.model import CovidModel
 
 SCREEN_WIDTH = 1440
 SCREEN_HEIGHT = 736
-FPS = 2  # 60
+FPS = 30  # 60
 
 # class Agent:
 #     def __init__(self, x, y):
@@ -38,12 +38,17 @@ FPS = 2  # 60
 
 
 def main():
-    model = CovidModel(N=1, width=1440 // TILE_SIZE, height=736 // TILE_SIZE)
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Simulation of virus spread")
     clock = pygame.time.Clock()
     mapa = Map("maps/walkway_map.tmx")
+    model = CovidModel(
+        N=1,
+        width=1440 // TILE_SIZE,
+        height=736 // TILE_SIZE,
+        map=mapa,
+    )
 
     running = True
     i = 0

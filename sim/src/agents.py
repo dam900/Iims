@@ -9,6 +9,14 @@ from enum import Enum, auto
 import numpy as np
 
 
+class BuldingType(Enum):
+    SHOP = "shop"
+    HOUSE = "house"
+    LIBRARY = "library"
+    FASTFOOD = "fastfood"
+    HOSPITAL = "hospital"
+
+
 class IllnessStates(Enum):
     SUSCEPTIBLE = auto()
     INFECTED = auto()
@@ -50,6 +58,7 @@ class HumanAgent(mesa.Agent):
         age: int = 20,
         vaccinated: bool = False,
         active: ActivityLikelihoods = ActivityLikelihoods.MEDIUM,
+        home: tuple[int, int] = (0, 0),
     ):
         super().__init__(model)
         # settable params
@@ -69,15 +78,24 @@ class HumanAgent(mesa.Agent):
         self.likelihood_of_recovery = 0.0
         self.likelihood_of_death = 0.0
 
-        self.move_likelihood_table = HumanAgent.determine_likelihood_of_mooving(active)
+        self.move_likelihood_table = HumanAgent.determine_likelihood_of_mooving(
+            active,
+        )
 
+        self.home = home
         self.destination: Optional[tuple[int, int]] = None
         self.is_moving = False
 
         self.grid: mesa.space.MultiGrid = self.model.grid
 
+    def respawn(self) -> None:
+        self.grid.place_agent(self, self.home)
+
     def determine_action(self) -> HumanAgentActions:
         return random.choice(self.move_likelihood_table)
+
+    def is_home(self) -> bool:
+        return self.pos == self.home
 
     def _set_destination(self, dest) -> None:
         self.destination = dest
@@ -88,36 +106,39 @@ class HumanAgent(mesa.Agent):
             + (next_pos[1] - self.destination[1]) ** 2
         )
 
+    def _get_best_move(self) -> tuple[int, int]:
+        pos_moves = self.grid.get_neighborhood(
+            self.pos, moore=True, include_center=True
+        )
+        dists = np.array(
+            list(
+                map(self._get_distance_to_destination, pos_moves),
+            ),
+        )
+
+        return pos_moves[np.argmin(dists)]
+
     def step(self, action: HumanAgentActions) -> None:
         """Only for testing purposes, what works and what doesn't"""
         if self.is_moving:
+            best_pos = self._get_best_move()
 
-            pos_moves = self.grid.get_neighborhood(self.pos, moore=True)
-
-            dists = np.array(
-                list(
-                    map(self._get_distance_to_destination, pos_moves),
-                ),
-            )
-
-            best = np.argmin(dists)
-            best_pos = pos_moves[best]
-
-            self.model.grid.move_agent(
+            self.grid.move_agent(
                 self,
                 (
                     best_pos[0],
                     best_pos[1],
                 ),
             )
+            if self.pos == self.destination:
+                self.is_moving = False
+                self.destination = None
             return
         if action == HumanAgentActions.STAY_IN_PLACE:
             self.is_moving = False
             self.destination = None
-            pass
         elif action == HumanAgentActions.MOVE:
-            # Determine a new destination
-            self._set_destination((0, 0))
+            self._set_destination(self.model.destgen.next(self))
             self.is_moving = True
         else:
             raise ValueError(f"Unknown action: {action}")
@@ -158,8 +179,13 @@ class HumanAgent(mesa.Agent):
 
 
 class HumanAgentGenerator:
-    def __init__(self, model: mesa.Model):
+    def __init__(
+        self,
+        model: mesa.Model,
+        spawn_point_generator: SpawnPointGenerator,
+    ):
         self.model = model
+        self.pos_generator = spawn_point_generator
 
     def next(self) -> HumanAgent:
         status = random.choice(list(IllnessStates))
@@ -168,6 +194,7 @@ class HumanAgentGenerator:
         vaccinated = random.choice([True, False])
         age = random.randint(10, 100)
         active = random.choice(list(ActivityLikelihoods))
+        home = self.pos_generator.next()
 
         return HumanAgent(
             model=self.model,
@@ -177,6 +204,7 @@ class HumanAgentGenerator:
             vaccinated=vaccinated,
             age=age,
             active=active,
+            home=home,
         )
 
 
@@ -189,3 +217,33 @@ class SpawnPointGenerator:
         x = random.randrange(self.width)
         y = random.randrange(self.height)
         return (x, y)
+
+
+class DestinationGenerator:
+    def __init__(
+        self,
+        buildings: dict[BuldingType, list[tuple[int, int]]],
+    ):
+        self.buildings: dict[BuldingType, list[tuple[int, int]]] = buildings
+
+    def _determine_building_type(self, agent: HumanAgent) -> BuldingType:
+        if agent.status == IllnessStates.INFECTED:
+            return BuldingType.HOSPITAL
+        if not agent.is_home():
+            return BuldingType.HOUSE
+        return random.choice(
+            [
+                BuldingType.SHOP,
+                BuldingType.LIBRARY,
+                BuldingType.FASTFOOD,
+            ]
+        )
+
+    def _get_destination(self, building_type: BuldingType, agent: HumanAgent) -> tuple:
+        if building_type == BuldingType.HOUSE:
+            return agent.home
+        return random.choice(self.buildings[building_type])
+
+    def next(self, agent: HumanAgent) -> tuple:
+        building_type = self._determine_building_type(agent)
+        return self._get_destination(building_type, agent)

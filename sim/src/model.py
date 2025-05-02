@@ -1,33 +1,32 @@
-from enum import Enum
 import mesa
 import mesa.datacollection
 
 from maps.map import Map
-from .agents import HumanAgent, HumanAgentGenerator, SpawnPointGenerator
-
-
-class BuldingType(Enum):
-    SHOP = "shop"
-    HOUSE = "house"
-    LIBRARY = "library"
-    FASTFOOD = "fastfood"
-    HOSPITAL = "hospital"
+from .agents import (
+    BuldingType,
+    DestinationGenerator,
+    HumanAgent,
+    HumanAgentGenerator,
+    SpawnPointGenerator,
+)
 
 
 class CovidModel(mesa.Model):
-    def __init__(self, N, width, height):
+    def __init__(self, N, width, height, map: Map):
         super().__init__()
         self.width = width
         self.height = height
         self.num_agents = N
         self.grid = mesa.space.MultiGrid(width, height, True)
+        self.__init_buildings(map)
+        self.destgen = DestinationGenerator(self.buildings)
 
-        agen = HumanAgentGenerator(self)
         spawngen = SpawnPointGenerator(self.width, self.height)
+        agen = HumanAgentGenerator(self, spawngen)
+
         for _ in range(self.num_agents):
             agent = agen.next()
-            pos = spawngen.next()
-            self.grid.place_agent(agent, pos)
+            agent.respawn()
         self.datacollector = mesa.datacollection.DataCollector(
             agent_reporters={
                 "pos": "pos",
@@ -36,9 +35,16 @@ class CovidModel(mesa.Model):
 
     def __init_buildings(self, map: Map):
         self.buildings: dict[BuldingType, list[tuple]] = {}
-        for building in BuldingType:
-            self.buildings[building] = []
-        self.buildings[BuldingType.HOSPITAL].append((0, 0))
+        houses = map.get_layer_positions_normalized("houses")
+        fastfood = map.get_layer_positions_normalized("fastfood")
+        library = map.get_layer_positions_normalized("library")
+        shop = map.get_layer_positions_normalized("shop")
+        hospital = map.get_layer_positions_normalized("hospital")
+        self.buildings[BuldingType.HOSPITAL] = hospital
+        self.buildings[BuldingType.HOUSE] = houses
+        self.buildings[BuldingType.FASTFOOD] = fastfood
+        self.buildings[BuldingType.LIBRARY] = library
+        self.buildings[BuldingType.SHOP] = shop
 
     def step(self) -> None:
         self.datacollector.collect(self)
