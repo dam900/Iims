@@ -73,7 +73,6 @@ class HumanAgent(mesa.Agent):
 
         # pathfinding
         self.grid: mesa.space.MultiGrid = self.model.grid
-        self.prev_pos: Optional[tuple[int, int]] = self.home
         self.path_finder = DestinationPathFinder(self.grid, self.model.map)
 
         # rendering
@@ -115,35 +114,41 @@ class HumanAgent(mesa.Agent):
 
         This is the main function where all the logic of the agent is executed.
         """
+
+        # actions realted to movement, order matters
         if self.is_moving:
             # if the agent is already moving, continue moving
             # until destination is reached
-            best_pos = self.path.pop(0)
-
+            new_x, new_y = self.path.pop(0)
             self.grid.move_agent(
                 self,
-                (
-                    best_pos[0],
-                    best_pos[1],
-                ),
+                (new_x, new_y),
             )
-            self.prev_pos = self.pos
             if self.pos == self.destination:
-                self.is_moving = False
-                self.destination = None
-                self.prev_pos = None
-            return
-        if action == HumanAgentActions.STAY_IN_PLACE:
+                self._on_destination_reached()
+        elif action == HumanAgentActions.STAY_IN_PLACE:
             # if the agent chose to stay in place, dont do anything
-            self.is_moving = False
-            self.destination = None
-            self.prev_pos = None
-        elif action == HumanAgentActions.MOVE:
+            self._on_stay_in_place()
+        elif action == HumanAgentActions.GO_OUT:
             # if the agent chose to move set the destination
-            self._set_destination(self.model.destgen.next(self))
-            self.is_moving = True
+            self._on_go_out()
         else:
             raise ValueError(f"Unknown action: {action}")
+
+        if self.status == IllnessStates.INFECTED:
+            ...  # do something here
+
+    def _on_stay_in_place(self):
+        self.is_moving = False
+        self.destination = None
+
+    def _on_go_out(self):
+        self._set_destination(self.model.destgen.next(self))
+        self.is_moving = True
+
+    def _on_destination_reached(self):
+        self.is_moving = False
+        self.destination = None
 
     def render(self, surface: Surface, scale_x, scale_y, scale_r) -> None:
         """Render the agent on the screen."""
@@ -164,30 +169,31 @@ class HumanAgent(mesa.Agent):
         Determine the likelihood of moving based on the activity likelihood.
         The likelihood is determined by the activity likelihood of the agent.
         The higher the activity likelihood, the more likely the agent is to move.
+
         The likelihood is determined by the following table:
-        +----------------+----------------+----------------+
-        | Activity       | Low            | Medium         | High           |
-        +----------------+----------------+----------------+
-        | Move           | 20%            | 50%            | 80%            |
-        | Stay in place  | 80%            | 50%            | 20%            |
-        +----------------+----------------+----------------+
+
+        | Activity       | Move Likelihood | Stay in Place Likelihood |
+        |----------------|-----------------|--------------------------|
+        | Low            | 20%             | 80%                      |
+        | Medium         | 50%             | 50%                      |
+        | High           | 80%             | 20%                      |
         """
 
         match move_likelihood:
             case ActivityLikelihoods.LOW:
                 # 80% stay in place, 20% move
                 return [HumanAgentActions.STAY_IN_PLACE for _ in range(8)] + [
-                    HumanAgentActions.MOVE for _ in range(2)
+                    HumanAgentActions.GO_OUT for _ in range(2)
                 ]
             case ActivityLikelihoods.MEDIUM:
                 # 50% stay in place, 50% move
                 return [HumanAgentActions.STAY_IN_PLACE for _ in range(5)] + [
-                    HumanAgentActions.MOVE for _ in range(5)
+                    HumanAgentActions.GO_OUT for _ in range(5)
                 ]
             case ActivityLikelihoods.HIGH:
                 # 20% stay in place, 80% move
                 return [HumanAgentActions.STAY_IN_PLACE for _ in range(2)] + [
-                    HumanAgentActions.MOVE for _ in range(8)
+                    HumanAgentActions.GO_OUT for _ in range(8)
                 ]
             case _:
                 raise ValueError(f"Unknown activity likelihood: {move_likelihood}")

@@ -61,4 +61,4 @@ class HumanAgentActions(Enum):
     """
 
     STAY_IN_PLACE = auto()
-    MOVE = auto()
+    GO_OUT = auto()
