@@ -12,7 +12,22 @@ from .agents import (
 
 
 class CovidModel(mesa.Model):
+    """
+    Model class for the COVID-19 simulation.
+    This class is responsible for managing the simulation environment,
+    including the grid, agents, and data collection.
+    """
+
     def __init__(self, N, width, height, map: Map):
+        """
+        Create a new model with the given parameters.
+        Args:
+            N: Number of agents
+            width: Width of the grid
+            height: Height of the grid
+            map: Map object containing the layers and positions
+        """
+
         super().__init__()
         self.width = width
         self.height = height
@@ -37,6 +52,12 @@ class CovidModel(mesa.Model):
         )
 
     def __init_buildings(self, map: Map):
+        """
+        Initialize the buildings on the map.
+        Args:
+            map: Map object containing the layers and positions
+        """
+
         self.buildings: dict[BuldingType, list[tuple]] = {}
         houses = map.get_layer_positions_normalized("houses")
         fastfood = map.get_layer_positions_normalized("fastfood")

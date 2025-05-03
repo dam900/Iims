@@ -1,41 +1,11 @@
-import random
 import pygame
 from maps.map import Map, TILE_SIZE
+from sim.src.agents import HumanAgent
 from sim.src.model import CovidModel
 
 SCREEN_WIDTH = 1440
 SCREEN_HEIGHT = 736
-FPS = 15  # 60
-
-# class Agent:
-#     def __init__(self, x, y):
-#         self.x = x
-#         self.y = y
-#         self.rect = pygame.Rect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE)
-#         self.color = (255, 0, 0)
-
-#     def update(self, mapa):
-#         keys = pygame.key.get_pressed()
-#         dx, dy = 0, 0
-#         if keys[pygame.K_LEFT]:
-#             dx = -1
-#         elif keys[pygame.K_RIGHT]:
-#             dx = 1
-#         elif keys[pygame.K_UP]:
-#             dy = -1
-#         elif keys[pygame.K_DOWN]:
-#             dy = 1
-
-#         new_x, new_y = self.x + dx, self.y + dy
-#         if mapa.is_allowed(new_x, new_y):
-#             self.x, self.y = new_x, new_y
-#             self.rect.topleft = (self.x * TILE_SIZE, self.y * TILE_SIZE)
-
-#         current_layers = mapa.get_current_layers(self.x, self.y)
-#         print(f"Agent znajduje się w warstwach: {current_layers}")
-
-#     def draw(self, surface):
-#         pygame.draw.rect(surface, self.color, self.rect)
+FPS = 30  # 60
 
 
 def main():
@@ -45,14 +15,13 @@ def main():
     clock = pygame.time.Clock()
     mapa = Map("maps/walkway_map.tmx")
     model = CovidModel(
-        N=10,
+        N=100,
         width=1440 // TILE_SIZE,
         height=736 // TILE_SIZE,
         map=mapa,
     )
 
     running = True
-    i = 0
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -73,25 +42,11 @@ def main():
         model.step()
         screen.fill((0, 0, 0))
         mapa.draw_map()
+        for agent in model.agents:
+            if isinstance(agent, HumanAgent):
+                agent.render(screen, TILE_SIZE, TILE_SIZE, TILE_SIZE // 2)
 
-        positions = model.datacollector.get_agent_vars_dataframe().xs(
-            i + 1, level="Step"
-        )
-
-        x = [pos[0] for pos in positions["pos"]]
-        y = [pos[1] for pos in positions["pos"]]
-
-        for pos in zip(x, y):
-            x, y = pos
-            pygame.draw.circle(
-                screen,
-                (255, 0, 0),
-                (x * TILE_SIZE + TILE_SIZE // 2, y * TILE_SIZE + TILE_SIZE // 2),
-                TILE_SIZE // 2,
-            )
-        print(model.agents[0].destination)
         pygame.display.update()
-        i += 1
         clock.tick(FPS)
     pygame.quit()
 
