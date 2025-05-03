@@ -2,12 +2,14 @@ import mesa
 import mesa.datacollection
 
 from maps.map import Map
-from .agents import (
-    BuldingType,
+from sim.src.generators import (
     DestinationGenerator,
+    SpawnPointGenerator,
+)
+from sim.src.params import BuldingType
+from .agents import (
     HumanAgent,
     HumanAgentGenerator,
-    SpawnPointGenerator,
 )
 
 

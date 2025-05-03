@@ -3,75 +3,17 @@ import random
 from typing import Optional
 import mesa
 
-from enum import Enum, auto
-
 from pygame import Surface
 import pygame
 
-from maps.map import Map
-
-
-class BuldingType(Enum):
-    """
-    Building types present in the simulation.
-    """
-
-    SHOP = "shop"
-    HOUSE = "house"
-    LIBRARY = "library"
-    FASTFOOD = "fastfood"
-    HOSPITAL = "hospital"
-
-
-class IllnessStates(Enum):
-    """
-    Illness states of the agent.
-    """
-
-    SUSCEPTIBLE = auto()
-    INFECTED = auto()
-    RECOVERED = auto()
-
-
-class SocialDistancingStates(Enum):
-    """
-    Social distancing options.
-    """
-
-    NO_SOCIAL_DISTANCING = auto()
-    AVERAGE_SOCIAL_DISTANCING = auto()
-    NORMAL_SOCIAL_DISTANCING = auto()
-    EXTREME_SOCIAL_DISTANCING = auto()
-
-
-class AgeGroups(Enum):
-    """
-    Age groups that the agent is a part of.
-    """
-
-    CHILD = auto()
-    YOUNG = auto()
-    ADULT = auto()
-    ELDERLY = auto()
-
-
-class ActivityLikelihoods(Enum):
-    """
-    Wheter the agent will go out a lot or stay at home.
-    """
-
-    LOW = auto()
-    MEDIUM = auto()
-    HIGH = auto()
-
-
-class HumanAgentActions(Enum):
-    """
-    Actions that the agent can take.
-    """
-
-    STAY_IN_PLACE = auto()
-    MOVE = auto()
+from sim.src.generators import DestinationPathFinder, SpawnPointGenerator
+from sim.src.params import (
+    ActivityLikelihoods,
+    AgeGroups,
+    HumanAgentActions,
+    IllnessStates,
+    SocialDistancingStates,
+)
 
 
 class HumanAgent(mesa.Agent):
@@ -304,111 +246,3 @@ class HumanAgentGenerator:
             active=active,
             home=home,
         )
-
-
-class SpawnPointGenerator:
-    """
-    A generator for spawn points.
-    The generator generates spawn points for the agents.
-    """
-
-    def __init__(
-        self,
-        houses=list[tuple[int, int]],
-    ):
-        """
-        Args:
-            houses (list[tuple[int, int]]): The list of houses.
-        """
-        self.houses: list[tuple[int, int]] = houses
-
-    def next(self) -> tuple:
-        return random.choice(self.houses)
-
-
-class DestinationGenerator:
-    """
-    A generator for destinations.
-    The generator generates destinations for the agents
-    based on their parameters.
-    """
-
-    def __init__(
-        self,
-        buildings: dict[BuldingType, list[tuple[int, int]]],
-    ):
-        """
-        Args:
-            buildings (dict[BuldingType, list[tuple[int, int]]]): The list of buildings.
-        """
-        self.buildings: dict[BuldingType, list[tuple[int, int]]] = buildings
-
-    def _determine_building_type(self, agent: HumanAgent) -> BuldingType:
-        if agent.status == IllnessStates.INFECTED:
-            return BuldingType.HOSPITAL
-        if not agent.is_home():
-            return BuldingType.HOUSE
-        return random.choice(
-            [
-                BuldingType.SHOP,
-                BuldingType.LIBRARY,
-                BuldingType.FASTFOOD,
-            ]
-        )
-
-    def _get_destination(self, building_type: BuldingType, agent: HumanAgent) -> tuple:
-        if building_type == BuldingType.HOUSE:
-            return agent.home
-        return random.choice(self.buildings[building_type])
-
-    def next(self, agent: HumanAgent) -> tuple:
-        building_type = self._determine_building_type(agent)
-        return self._get_destination(building_type, agent)
-
-
-class DestinationPathFinder:
-    """
-    A path finder for the agent.
-    The path finder finds the path from the start position to the end position.
-    The path is found using a breadth-first search algorithm.
-    """
-
-    def __init__(self, grid: mesa.space.MultiGrid, map: Map):
-        """
-        Args:
-            grid (mesa.space.MultiGrid): The grid that the agent is a part of.
-            map (Map): The map that the agent is a part of.
-        """
-        self.grid = grid
-        self.map = map
-
-    def _available_moves(self, pos: tuple[int, int]) -> list[tuple[int, int]]:
-        adjecent = self.grid.get_neighborhood(
-            pos,
-            moore=False,
-            include_center=False,
-        )
-        return list(filter(self.map.is_allowed, adjecent))
-
-    def _find(
-        self, start: tuple[int, int], end: tuple[int, int]
-    ) -> list[tuple[int, int]]:
-        queue = [(start, [start])]
-        visited = set()
-
-        while queue:
-            current_pos, path = queue.pop(0)
-            if current_pos == end:
-                return path
-
-            for next_pos in self._available_moves(current_pos):
-                if next_pos not in visited:
-                    visited.add(next_pos)
-                    queue.append((next_pos, path + [next_pos]))
-
-        return []
-
-    def find(
-        self, start: tuple[int, int], end: tuple[int, int]
-    ) -> list[tuple[int, int]]:
-        return self._find(start, end)
