@@ -5,7 +5,7 @@ from sim.src.model import CovidModel
 
 SCREEN_WIDTH = 1440
 SCREEN_HEIGHT = 736
-FPS = 30  # 60
+FPS = 15  # 60
 
 
 def main():
@@ -15,7 +15,7 @@ def main():
     clock = pygame.time.Clock()
     mapa = Map("maps/walkway_map.tmx")
     model = CovidModel(
-        N=100,
+        N=10,
         width=1440 // TILE_SIZE,
         height=736 // TILE_SIZE,
         map=mapa,

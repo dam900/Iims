@@ -74,7 +74,10 @@ class DestinationGenerator:
             return agent.home
         return random.choice(self.buildings[building_type])
 
-    def next(self, agent) -> tuple:  #: HumanAgent,
+    def next(
+        self,
+        agent: HumanAgent,
+    ) -> tuple[int, int]:
         building_type = self._determine_building_type(agent)
         return self._get_destination(building_type, agent)
 
