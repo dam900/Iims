@@ -1,3 +1,4 @@
+from typing import Optional
 import mesa
 import mesa.datacollection
 
@@ -6,7 +7,7 @@ from sim.src.generators import (
     DestinationGenerator,
     SpawnPointGenerator,
 )
-from sim.src.params import BuldingType
+from sim.src.params import BuldingType, IllnessStates
 from .agents import (
     HumanAgent,
     HumanAgentGenerator,
@@ -52,6 +53,15 @@ class CovidModel(mesa.Model):
                 "pos": "pos",
             }
         )
+        self.grid.add_property_layer(
+            mesa.space.PropertyLayer(
+                "Virus",
+                self.width,
+                self.height,
+                0.0,
+                float,
+            ),
+        )
 
     def __init_buildings(self, map: Map):
         """
@@ -72,9 +82,19 @@ class CovidModel(mesa.Model):
         self.buildings[BuldingType.LIBRARY] = library
         self.buildings[BuldingType.SHOP] = shop
 
+    def building_at_pos(self, pos: tuple[int, int]) -> Optional[BuldingType]:
+        for type_, list_ in self.buildings.items():
+            if pos in list_:
+                return type_
+        return None
+
     def step(self) -> None:
         self.datacollector.collect(self)
         for agent in self.agents:
             if isinstance(agent, HumanAgent):
                 act = agent.determine_action()
                 agent.step(act)
+                if agent.status == IllnessStates.INFECTED:
+                    # leave some virus on the ground
+                    virus: mesa.space.PropertyLayer = self.grid.properties["Virus"]
+                    virus.set_cell(agent.pos, virus.data[agent.pos] + 10)

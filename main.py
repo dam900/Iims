@@ -15,11 +15,14 @@ def main():
     clock = pygame.time.Clock()
     mapa = Map("maps/walkway_map.tmx")
     model = CovidModel(
-        N=10,
+        N=30,
         width=1440 // TILE_SIZE,
         height=736 // TILE_SIZE,
         map=mapa,
     )
+
+    virus_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+    virus_surface.set_alpha(254 // 5)
 
     running = True
     while running:
@@ -46,9 +49,38 @@ def main():
             if isinstance(agent, HumanAgent):
                 agent.render(screen, TILE_SIZE, TILE_SIZE, TILE_SIZE // 2)
 
+        prop = model.grid.properties["Virus"]
+        for i, row in enumerate(prop.data):
+            for j, val in enumerate(row):
+                if val > 0.0:
+                    draw_virus_progress_bar(screen, i, j, val, 3)
+
         pygame.display.update()
         clock.tick(FPS)
     pygame.quit()
+
+
+def draw_virus_progress_bar(screen, i, j, val, thickness=2):
+    pygame.draw.rect(
+        screen,
+        (0, 0, 0),
+        pygame.Rect(
+            i * TILE_SIZE,
+            j * TILE_SIZE,
+            TILE_SIZE,
+            thickness,
+        ),
+    )
+    pygame.draw.rect(
+        screen,
+        (255, 0, 0),
+        pygame.Rect(
+            i * TILE_SIZE,
+            j * TILE_SIZE,
+            min(TILE_SIZE, val / 255 * TILE_SIZE),
+            thickness,
+        ),
+    )
 
 
 if __name__ == "__main__":

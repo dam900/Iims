@@ -10,6 +10,7 @@ from sim.src.generators import DestinationPathFinder, SpawnPointGenerator
 from sim.src.params import (
     ActivityLikelihoods,
     AgeGroups,
+    BuldingType,
     HumanAgentActions,
     IllnessStates,
     SocialDistancingStates,
@@ -48,28 +49,30 @@ class HumanAgent(mesa.Agent):
 
         super().__init__(model)
         # settable params
-        self.status = status
-        self.face_cover = face_cover
-        self.social_distance = social_distance
-        self.vaccinated = vaccinated
-        self.age = age
-        self.active = active
+        self.status: IllnessStates = status
+        self.face_cover: bool = face_cover
+        self.social_distance: SocialDistancingStates = social_distance
+        self.vaccinated: bool = vaccinated
+        self.age: int = age
+        self.active: ActivityLikelihoods = active
         # illness params
-        self.infection_time = 0
-        self.likelihood_of_infection = 0.0
-        self.likelihood_of_recovery = 0.0
-        self.likelihood_of_death = 0.0
+        self.infection_time: int = 0
+        self.likelihood_of_infection: float = 0.0
+        self.likelihood_of_recovery: float = 0.2
+        self.likelihood_of_death: float = 0.0
 
         # unsettable params
-        self.age_group = HumanAgent.determine_age_group(age)
-        self.move_likelihood_table = HumanAgent.determine_likelihood_of_mooving(
-            active,
+        self.age_group: AgeGroups = HumanAgent.determine_age_group(age)
+        self.move_likelihood_table: list[HumanAgentActions] = (
+            HumanAgent.determine_likelihood_of_mooving(
+                active,
+            )
         )
 
         # simulation helpers
-        self.home = home
+        self.home: tuple[int, int] = home
         self.destination: Optional[tuple[int, int]] = None
-        self.is_moving = False
+        self.is_moving: bool = False
 
         # pathfinding
         self.grid: mesa.space.MultiGrid = self.model.grid
@@ -136,7 +139,13 @@ class HumanAgent(mesa.Agent):
             raise ValueError(f"Unknown action: {action}")
 
         if self.status == IllnessStates.INFECTED:
-            ...  # do something here
+            # update infection params
+            self.infection_time += 1
+
+            # interactions
+            if self.model.building_at_pos(self.pos) == BuldingType.HOSPITAL:
+                if random.random() < self.likelihood_of_recovery:
+                    self.status = IllnessStates.RECOVERED
 
     def _on_stay_in_place(self):
         self.is_moving = False
@@ -234,7 +243,8 @@ class HumanAgentGenerator:
         self.pos_generator = spawn_point_generator
 
     def next(self) -> HumanAgent:
-        status = random.choice(list(IllnessStates))
+        # status = random.choice(list(IllnessStates))
+        status = IllnessStates.INFECTED
         face_cover = random.choice([True, False])
         social_distance = random.choice(list(SocialDistancingStates))
         vaccinated = random.choice([True, False])
