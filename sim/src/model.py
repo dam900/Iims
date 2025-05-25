@@ -1,6 +1,8 @@
 from typing import Optional
 import mesa
 import mesa.datacollection
+import random
+
 
 from maps.map import Map
 from sim.src.generators import (
@@ -45,9 +47,12 @@ class CovidModel(mesa.Model):
         )
         agen = HumanAgentGenerator(self, spawngen)
 
+        self.custom_agents = []
         for _ in range(self.num_agents):
             agent = agen.next()
             agent.respawn()
+            self.custom_agents.append(agent)
+
         self.datacollector = mesa.datacollection.DataCollector(
             agent_reporters={
                 "pos": "pos",
@@ -62,6 +67,9 @@ class CovidModel(mesa.Model):
                 float,
             ),
         )
+
+        self.steps_elapsed = 0
+        self.patient_zero_infected = False
 
     def __init_buildings(self, map: Map):
         """
@@ -89,12 +97,34 @@ class CovidModel(mesa.Model):
         return None
 
     def step(self) -> None:
+
+        self.steps_elapsed += 1
+
+        # Infect patient zero after ~5 seconds (e.g., 300 steps at ~16ms intervals)
+        if not self.patient_zero_infected and self.steps_elapsed >= 100:
+            eligible = [a for a in self.custom_agents if not a.face_cover]
+            if eligible:
+                patient_zero = random.choice(eligible)
+                patient_zero.status = IllnessStates.INFECTED
+                self.patient_zero_infected = True
+                print(f"Patient zero infected at step {self.steps_elapsed}")
+
         self.datacollector.collect(self)
-        for agent in self.agents:
+        for agent in self.custom_agents:
+
             if isinstance(agent, HumanAgent):
                 act = agent.determine_action()
                 agent.step(act)
                 if agent.status == IllnessStates.INFECTED:
                     # leave some virus on the ground
                     virus: mesa.space.PropertyLayer = self.grid.properties["Virus"]
-                    virus.set_cell(agent.pos, virus.data[agent.pos] + 10)
+                    virus.set_cell(agent.pos, virus.data[agent.pos] + (1 if agent.face_cover else 10))
+        # Zanikanie wirusa na wszystkich płytkach
+        virus: mesa.space.PropertyLayer = self.grid.properties["Virus"]
+        if self.steps_elapsed % 5 == 0:
+            virus: mesa.space.PropertyLayer = self.grid.properties["Virus"]
+            for x in range(self.width):
+                for y in range(self.height):
+                    current_level = virus.data[(x, y)]
+                    new_level = max(0.0, current_level - 1)
+                    virus.set_cell((x, y), new_level)

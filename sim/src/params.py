@@ -21,6 +21,7 @@ class IllnessStates(Enum):
     SUSCEPTIBLE = auto()
     INFECTED = auto()
     RECOVERED = auto()
+    DEAD = auto()
 
 
 class SocialDistancingStates(Enum):

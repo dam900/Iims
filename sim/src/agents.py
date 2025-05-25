@@ -57,12 +57,15 @@ class HumanAgent(mesa.Agent):
         self.active: ActivityLikelihoods = active
         # illness params
         self.infection_time: int = 0
+        self.hospital_time: int = 0
+        self.recovered_time: int = 0
         self.likelihood_of_infection: float = 0.0
         self.likelihood_of_recovery: float = 0.2
-        self.likelihood_of_death: float = 0.0
+        # self.likelihood_of_death: float = 0.05
 
         # unsettable params
         self.age_group: AgeGroups = HumanAgent.determine_age_group(age)
+        self.likelihood_of_death = 0.05 * (self.age / 100)
         self.move_likelihood_table: list[HumanAgentActions] = (
             HumanAgent.determine_likelihood_of_mooving(
                 active,
@@ -79,7 +82,8 @@ class HumanAgent(mesa.Agent):
         self.path_finder = DestinationPathFinder(self.grid, self.model.map)
 
         # rendering
-        self.radius = random.randrange(5, 10, 1) / 10
+        self.radius = 0.3 + (self.age / 100) * 0.7
+        #self.radius = random.randrange(5, 10, 1) / 10
         self.color = (
             random.randint(0, 128),
             random.randint(0, 128),
@@ -117,6 +121,8 @@ class HumanAgent(mesa.Agent):
 
         This is the main function where all the logic of the agent is executed.
         """
+        if self.status == IllnessStates.DEAD:
+            return
 
         # actions realted to movement, order matters
         if self.is_moving:
@@ -138,14 +144,46 @@ class HumanAgent(mesa.Agent):
         else:
             raise ValueError(f"Unknown action: {action}")
 
+        # If agent is healthy, check for infection
+        if self.status == IllnessStates.SUSCEPTIBLE:
+            virus_layer = self.grid.properties["Virus"]
+            virus_level = virus_layer.data[self.pos]
+            infection_chance = virus_level / 1000  # skalowanie na szanse
+            if self.face_cover:
+                infection_chance *= 0.05  # maseczka daje wam 5% szansy
+            if random.random() < infection_chance:
+                self.status = IllnessStates.INFECTED
+
         if self.status == IllnessStates.INFECTED:
             # update infection params
             self.infection_time += 1
 
             # interactions
             if self.model.building_at_pos(self.pos) == BuldingType.HOSPITAL:
-                if random.random() < self.likelihood_of_recovery:
-                    self.status = IllnessStates.RECOVERED
+                self.hospital_time += 1
+                if self.hospital_time >= 300:  # musi siedzieć 100 kroków
+                    if random.random() < self.likelihood_of_death:
+                        print(f"Bąbelek {self.unique_id} kipnął na kroku {self.model.steps_elapsed}")
+                        self.status = IllnessStates.DEAD
+                        self.is_moving = False
+                        self.destination = None
+                        return
+                    elif random.random() < self.likelihood_of_recovery:
+                        self.status = IllnessStates.RECOVERED
+                        if not self.face_cover and random.random() < 0.4:
+                            self.face_cover = True
+                        self.recovered_time = 0
+            else:
+                self.hospital_time = 0  # jeśli opuści szpital — reset
+        # Obsługa czasu trwania ozdrowienia
+        if self.status == IllnessStates.RECOVERED:
+            self.recovered_time += 1
+            if self.recovered_time >= 500:
+                self.status = IllnessStates.SUSCEPTIBLE
+                self.recovered_time = 0
+
+        if self.status == IllnessStates.DEAD:
+            return
 
     def _on_stay_in_place(self):
         self.is_moving = False
@@ -160,14 +198,29 @@ class HumanAgent(mesa.Agent):
         self.destination = None
 
     def render(self, surface: Surface, scale_x, scale_y, scale_r) -> None:
-        """Render the agent on the screen."""
         x, y = self.pos
-        pygame.draw.circle(
-            surface,
-            self.color,
-            (x * scale_x + scale_x // 2, y * scale_y + scale_y // 2),
-            self.radius * scale_r,
-        )
+        cx = x * scale_x + scale_x // 2
+        cy = y * scale_y + scale_y // 2
+        radius = int(self.radius * scale_r)
+
+        # Rysuj kółko agenta
+        pygame.draw.circle(surface, self.color, (cx, cy), radius)
+
+        # Rysuj czerwone X dla zarażonych
+        if self.face_cover:
+            pygame.draw.rect(surface, (255, 255, 255), (cx - radius, cy, 2 * radius, radius))
+        if self.status == IllnessStates.INFECTED:
+            offset = radius // 2
+            pygame.draw.line(surface, (255, 0, 0), (cx - offset, cy - offset), (cx + offset, cy + offset), 2)
+            pygame.draw.line(surface, (255, 0, 0), (cx - offset, cy + offset), (cx + offset, cy - offset), 2)
+        elif self.status == IllnessStates.RECOVERED:
+            offset = radius // 2
+            pygame.draw.line(surface, (0, 0, 255), (cx - offset, cy), (cx + offset, cy), 2)
+            pygame.draw.line(surface, (0, 0, 255), (cx, cy - offset), (cx, cy + offset), 2)
+        elif self.status == IllnessStates.DEAD:
+            pygame.draw.circle(surface, (100, 100, 100), (cx, cy), radius)
+            pygame.draw.line(surface, (0, 0, 0), (cx - radius, cy), (cx + radius, cy), 2)
+
         pass
 
     @classmethod
@@ -244,8 +297,8 @@ class HumanAgentGenerator:
 
     def next(self) -> HumanAgent:
         # status = random.choice(list(IllnessStates))
-        status = IllnessStates.INFECTED
-        face_cover = random.choice([True, False])
+        status = IllnessStates.SUSCEPTIBLE
+        face_cover = random.random() < 0.2  # szansa na maseczkę
         social_distance = random.choice(list(SocialDistancingStates))
         vaccinated = random.choice([True, False])
         age = random.randint(10, 100)
